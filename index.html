@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イルミネーション発電ブラウザ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0a0a0f;
+            font-family: 'Noto Sans JP', sans-serif;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        .custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffcc00;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s;
+            mix-blend-mode: difference;
+        }
+
+        .blackout-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            opacity: 0;
+            z-index: 100;
+            pointer-events: none;
+            transition: opacity 0.3s ease-out;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #ffcc00;
+            text-shadow: 0 0 10px #ffcc00, 0 0 20px #ff9900, 0 0 30px #ff6600;
+            letter-spacing: 2px;
+            transition: opacity 0.3s, text-shadow 0.3s;
+        }
+
+        .power-display {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .power-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .power-bar-container {
+            width: 200px;
+            height: 24px;
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 3px;
+            border: 1px solid #333;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .power-bar {
+            height: 100%;
+            width: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #ff3300, #ff6600, #ffcc00, #66ff00);
+            transition: width 0.15s ease-out;
+            box-shadow: 0 0 15px currentColor;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .power-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            100% { left: 100%; }
+        }
+
+        .power-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffcc00;
+            min-width: 60px;
+            text-align: right;
+            text-shadow: 0 0 10px #ffcc00;
+        }
+
+        .illumination-area {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 60vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tree-container {
+            position: relative;
+            width: 300px;
+            height: 400px;
+        }
+
+        .tree {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tree-trunk {
+            width: 40px;
+            height: 60px;
+            background: linear-gradient(90deg, #4a3728, #6b4423, #4a3728);
+            border-radius: 0 0 5px 5px;
+        }
+
+        .tree-layer {
+            width: 0;
+            height: 0;
+            border-left: solid transparent;
+            border-right: solid transparent;
+            border-bottom: solid #0d5c0d;
+            filter: drop-shadow(0 5px 10px rgba(0,100,0,0.3));
+        }
+
+        .tree-layer-1 {
+            border-left-width: 140px;
+            border-right-width: 140px;
+            border-bottom-width: 160px;
+            margin-top: -50px;
+        }
+
+        .tree-layer-2 {
+            border-left-width: 105px;
+            border-right-width: 105px;
+            border-bottom-width: 130px;
+            margin-top: -50px;
+        }
+
+        .tree-layer-3 {
+            border-left-width: 70px;
+            border-right-width: 70px;
+            border-bottom-width: 100px;
+        }
+
+        .lights-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .light {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: opacity 0.3s, box-shadow 0.3s, transform 0.3s;
+        }
+
+        .light.red { background: #ff3366; }
+        .light.blue { background: #3399ff; }
+        .light.green { background: #33ff66; }
+        .light.yellow { background: #ffcc00; }
+        .light.purple { background: #cc66ff; }
+        .light.orange { background: #ff9933; }
+        .light.pink { background: #ff66b2; }
+        .light.cyan { background: #00ffff; }
+
+        .light.lit {
+            box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+            transform: scale(1.2);
+        }
+
+        .string-lights {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .string-light {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            transition: opacity 0.3s, box-shadow 0.3s;
+        }
+
+        .keyboard-display {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 50;
+        }
+
+        .pressed-key {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #ffcc00;
+            text-shadow: 0 0 20px #ffcc00, 0 0 40px #ff9900;
+            min-width: 80px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 204, 0, 0.1);
+            border: 2px solid #ffcc00;
+            border-radius: 10px;
+            animation: keyPop 0.2s ease-out;
+            transition: opacity 0.3s;
+        }
+
+        @keyframes keyPop {
+            0% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        .instruction {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            animation: pulse 2s ease-in-out infinite;
+            transition: opacity 0.3s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .watt-display {
+            position: fixed;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: #66ff00;
+            text-shadow: 0 0 10px #66ff00;
+            z-index: 50;
+            transition: opacity 0.3s;
+        }
+
+        .watt-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+        }
+
+        .spark {
+            position: fixed;
+            pointer-events: none;
+            font-size: 24px;
+            animation: sparkFly 0.8s ease-out forwards;
+            z-index: 200;
+        }
+
+        @keyframes sparkFly {
+            0% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.5) translateY(-100px);
+            }
+        }
+
+        .blackout-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            color: #ff3300;
+            text-shadow: 0 0 20px #ff3300;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            opacity: 0;
+            z-index: 200;
+            text-align: center;
+            transition: opacity 0.5s;
+        }
+
+        .warning-flash {
+            animation: warningFlash 0.3s ease-in-out infinite;
+        }
+
+        @keyframes warningFlash {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .low-power .title,
+        .low-power .star {
+            animation: flicker 0.1s ease-in-out infinite;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .stats {
+            position: fixed;
+            top: 80px;
+            right: 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: #555;
+            text-align: right;
+            z-index: 50;
+        }
+
+        .stats-value {
+            color: #888;
+        }
+
+        .generator-icon {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 80px;
+            height: 80px;
+            z-index: 50;
+        }
+
+        .generator-wheel {
+            width: 100%;
+            height: 100%;
+            border: 4px solid #ffcc00;
+            border-radius: 50%;
+            position: relative;
+            transition: box-shadow 0.3s;
+        }
+
+        .generator-wheel::before,
+        .generator-wheel::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60%;
+            height: 4px;
+            background: #ffcc00;
+            transform-origin: center;
+        }
+
+        .generator-wheel::before {
+            transform: translate(-50%, -50%) rotate(0deg);
+        }
+
+        .generator-wheel::after {
+            transform: translate(-50%, -50%) rotate(90deg);
+        }
+
+        .generator-wheel.spinning {
+            animation: spin 0.5s linear infinite;
+            box-shadow: 0 0 20px #ffcc00, 0 0 40px #ff9900;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .firework {
+            position: fixed;
+            pointer-events: none;
+            z-index: 150;
+        }
+
+        .firework-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: fireworkExplode 1s ease-out forwards;
+        }
+
+        @keyframes fireworkExplode {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="custom-cursor" id="cursor"></div>
+    <div class="blackout-overlay" id="blackout"></div>
+    <div class="blackout-message" id="blackoutMessage">⚡ BLACKOUT ⚡<br><span style="font-size: 1rem;">キーを押して発電再開!</span></div>
+
+    <div class="header">
+        <h1 class="title">⚡ イルミネーション発電ブラウザ ⚡</h1>
+        <div class="power-display">
+            <span class="power-label">電力</span>
+            <div class="power-bar-container">
+                <div class="power-bar" id="powerBar"></div>
+            </div>
+            <span class="power-value" id="powerValue">100%</span>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div>総発電量: <span class="stats-value" id="totalWatts">0</span> W</div>
+        <div>キー入力: <span class="stats-value" id="totalKeys">0</span> 回</div>
+        <div>最高連打速度: <span class="stats-value" id="maxSpeed">0</span> /秒</div>
+    </div>
+
+    <div class="string-lights" id="stringLights"></div>
+
+    <div class="container" id="mainContainer">
+        <div class="illumination-area">
+            <div class="tree-container">
+                <div class="tree">
+                    <div class="tree-layer tree-layer-3"></div>
+                    <div class="tree-layer tree-layer-2"></div>
+                    <div class="tree-layer tree-layer-1"></div>
+                    <div class="tree-trunk"></div>
+                </div>
+                <div class="lights-container" id="treeLights"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="watt-display" id="wattDisplay">
+        <span class="watt-value" id="currentWatts">0</span> W/s
+    </div>
+
+    <div class="keyboard-display">
+        <div class="pressed-key" id="pressedKey">?</div>
+        <div class="instruction">キーボードを連打して発電!</div>
+    </div>
+
+    <div class="generator-icon">
+        <div class="generator-wheel" id="generatorWheel"></div>
+    </div>
+
+    <script>
+        // Game state
+        let power = 50; // Start at 50% - need to build up!
+        let totalWatts = 0;
+        let totalKeys = 0;
+        let keyPressTimestamps = [];
+        let maxSpeed = 0;
+        let isBlackout = false;
+        let lastKeyTime = Date.now();
+        let wasMaxPower = false; // Track if we just hit max power
+
+        // DOM elements
+        const cursor = document.getElementById('cursor');
+        const blackout = document.getElementById('blackout');
+        const blackoutMessage = document.getElementById('blackoutMessage');
+        const powerBar = document.getElementById('powerBar');
+        const powerValue = document.getElementById('powerValue');
+        const pressedKey = document.getElementById('pressedKey');
+        const generatorWheel = document.getElementById('generatorWheel');
+        const currentWattsEl = document.getElementById('currentWatts');
+        const totalWattsEl = document.getElementById('totalWatts');
+        const totalKeysEl = document.getElementById('totalKeys');
+        const maxSpeedEl = document.getElementById('maxSpeed');
+        const treeLightsContainer = document.getElementById('treeLights');
+        const stringLightsContainer = document.getElementById('stringLights');
+        const mainContainer = document.getElementById('mainContainer');
+
+        // Custom cursor
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX - 10 + 'px';
+            cursor.style.top = e.clientY - 10 + 'px';
+        });
+
+        // Create tree lights
+        const lightColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'cyan'];
+        const treeLights = [];
+
+        function createTreeLights() {
+            const positions = [
+                // Layer 1 (bottom) - lights turn on first (bottom to top)
+                { x: 30, y: 330 }, { x: 70, y: 320 }, { x: 110, y: 315 }, { x: 150, y: 310 }, { x: 190, y: 315 }, { x: 230, y: 320 }, { x: 270, y: 330 },
+                { x: 45, y: 295 }, { x: 80, y: 285 }, { x: 115, y: 280 }, { x: 150, y: 275 }, { x: 185, y: 280 }, { x: 220, y: 285 }, { x: 255, y: 295 },
+                { x: 60, y: 260 }, { x: 90, y: 250 }, { x: 120, y: 245 }, { x: 150, y: 240 }, { x: 180, y: 245 }, { x: 210, y: 250 }, { x: 240, y: 260 },
+                { x: 75, y: 230 }, { x: 100, y: 220 }, { x: 125, y: 215 }, { x: 150, y: 210 }, { x: 175, y: 215 }, { x: 200, y: 220 }, { x: 225, y: 230 },
+                // Layer 2 (middle)
+                { x: 95, y: 190 }, { x: 120, y: 180 }, { x: 150, y: 175 }, { x: 180, y: 180 }, { x: 205, y: 190 },
+                { x: 105, y: 165 }, { x: 125, y: 155 }, { x: 145, y: 150 }, { x: 165, y: 155 }, { x: 195, y: 165 },
+                { x: 115, y: 140 }, { x: 135, y: 130 }, { x: 150, y: 125 }, { x: 165, y: 130 }, { x: 185, y: 140 },
+                // Layer 3 (top) - lights turn on last
+                { x: 125, y: 100 }, { x: 140, y: 95 }, { x: 160, y: 95 }, { x: 175, y: 100 },
+                { x: 135, y: 80 }, { x: 150, y: 75 }, { x: 165, y: 80 },
+                { x: 145, y: 60 }, { x: 155, y: 60 },
+            ];
+
+            positions.forEach((pos, i) => {
+                const light = document.createElement('div');
+                light.className = `light ${lightColors[i % lightColors.length]}`;
+                light.style.left = pos.x + 'px';
+                light.style.top = pos.y + 'px';
+                light.dataset.delay = Math.random() * 0.5;
+                treeLightsContainer.appendChild(light);
+                treeLights.push(light);
+            });
+        }
+
+        // Create string lights around the screen
+        const stringLights = [];
+
+        function createStringLights() {
+            const spacing = 60;
+            const colors = ['#ff3366', '#3399ff', '#33ff66', '#ffcc00', '#cc66ff', '#ff9933'];
+            
+            // Top edge
+            for (let x = spacing; x < window.innerWidth; x += spacing) {
+                createStringLight(x, 20, colors[stringLights.length % colors.length]);
+            }
+            
+            // Bottom edge
+            for (let x = spacing; x < window.innerWidth; x += spacing) {
+                createStringLight(x, window.innerHeight - 20, colors[stringLights.length % colors.length]);
+            }
+            
+            // Left edge
+            for (let y = spacing; y < window.innerHeight; y += spacing) {
+                createStringLight(20, y, colors[stringLights.length % colors.length]);
+            }
+            
+            // Right edge
+            for (let y = spacing; y < window.innerHeight; y += spacing) {
+                createStringLight(window.innerWidth - 20, y, colors[stringLights.length % colors.length]);
+            }
+        }
+
+        function createStringLight(x, y, color) {
+            const light = document.createElement('div');
+            light.className = 'string-light';
+            light.style.left = x + 'px';
+            light.style.top = y + 'px';
+            light.style.background = color;
+            light.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+            light.dataset.color = color;
+            stringLightsContainer.appendChild(light);
+            stringLights.push(light);
+        }
+
+        // Create spark effect
+        function createSpark(x, y) {
+            const sparks = ['⚡', '✨', '💥', '🔥'];
+            const spark = document.createElement('div');
+            spark.className = 'spark';
+            spark.textContent = sparks[Math.floor(Math.random() * sparks.length)];
+            spark.style.left = x + 'px';
+            spark.style.top = y + 'px';
+            document.body.appendChild(spark);
+            setTimeout(() => spark.remove(), 800);
+        }
+
+        // Create firework effect
+        function createFirework(x, y) {
+            const firework = document.createElement('div');
+            firework.className = 'firework';
+            firework.style.left = x + 'px';
+            firework.style.top = y + 'px';
+            
+            const colors = ['#ff3366', '#3399ff', '#33ff66', '#ffcc00', '#cc66ff', '#ff9933'];
+            const particleCount = 12;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'firework-particle';
+                const angle = (i / particleCount) * Math.PI * 2;
+                const distance = 50 + Math.random() * 50;
+                particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+                particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                firework.appendChild(particle);
+            }
+            
+            document.body.appendChild(firework);
+            setTimeout(() => firework.remove(), 1000);
+        }
+
+        // Update lights based on power level
+        function updateLights() {
+            const litCount = Math.floor((power / 100) * treeLights.length);
+            
+            treeLights.forEach((light, i) => {
+                if (i < litCount && power > 0) {
+                    light.classList.add('lit');
+                    light.style.opacity = Math.min(1, power / 30 + 0.3);
+                } else {
+                    light.classList.remove('lit');
+                    light.style.opacity = 0.1;
+                }
+            });
+
+            const stringLitCount = Math.floor((power / 100) * stringLights.length);
+            stringLights.forEach((light, i) => {
+                if (i < stringLitCount && power > 0) {
+                    const color = light.dataset.color;
+                    light.style.opacity = Math.min(1, power / 30 + 0.3);
+                    light.style.boxShadow = `0 0 ${10 * (power/100)}px ${color}, 0 0 ${20 * (power/100)}px ${color}`;
+                } else {
+                    light.style.opacity = 0.1;
+                    light.style.boxShadow = 'none';
+                }
+            });
+        }
+
+        // Calculate current typing speed
+        function getCurrentSpeed() {
+            const now = Date.now();
+            const recentKeys = keyPressTimestamps.filter(t => now - t < 1000);
+            return recentKeys.length;
+        }
+
+        // Handle key press
+        function handleKeyPress(e) {
+            if (e.repeat) return;
+            
+            const now = Date.now();
+            lastKeyTime = now;
+            totalKeys++;
+            keyPressTimestamps.push(now);
+            
+            // Clean up old timestamps
+            keyPressTimestamps = keyPressTimestamps.filter(t => now - t < 2000);
+            
+            // Calculate watts generated (based on key frequency)
+            const currentSpeed = getCurrentSpeed();
+            const wattsGenerated = Math.min(currentSpeed * 5, 50);
+            totalWatts += wattsGenerated;
+            
+            // Update max speed
+            if (currentSpeed > maxSpeed) {
+                maxSpeed = currentSpeed;
+                maxSpeedEl.textContent = maxSpeed;
+            }
+            
+            // Add power - balanced power gain
+            power = Math.min(100, power + 4 + (currentSpeed * 0.3));
+            
+            // Visual feedback
+            pressedKey.textContent = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+            pressedKey.style.animation = 'none';
+            pressedKey.offsetHeight; // Trigger reflow
+            pressedKey.style.animation = 'keyPop 0.2s ease-out';
+            
+            // Generator animation
+            generatorWheel.classList.add('spinning');
+            
+            // Create spark at random position
+            createSpark(
+                100 + Math.random() * (window.innerWidth - 200),
+                100 + Math.random() * (window.innerHeight - 200)
+            );
+            
+            // Create firework on high speed
+            if (currentSpeed > 8 && Math.random() > 0.7) {
+                createFirework(
+                    100 + Math.random() * (window.innerWidth - 200),
+                    100 + Math.random() * (window.innerHeight - 200)
+                );
+            }
+            
+            // Recover from blackout
+            if (isBlackout) {
+                isBlackout = false;
+                blackoutMessage.style.opacity = '0';
+            }
+            
+            // Update stats
+            currentWattsEl.textContent = wattsGenerated;
+            totalWattsEl.textContent = Math.floor(totalWatts);
+            totalKeysEl.textContent = totalKeys;
+        }
+
+        // Game loop
+        function gameLoop() {
+            const now = Date.now();
+            const timeSinceLastKey = now - lastKeyTime;
+            
+            // Power decay - challenging decay rate
+            if (timeSinceLastKey > 80) {
+                const decayRate = 0.8 + (timeSinceLastKey / 500) * 1.5;
+                power = Math.max(0, power - decayRate);
+            }
+            
+            // Stop generator spinning if no recent input
+            if (timeSinceLastKey > 300) {
+                generatorWheel.classList.remove('spinning');
+            }
+            
+            // Update current watts display
+            if (timeSinceLastKey > 500) {
+                currentWattsEl.textContent = '0';
+            }
+            
+            // Update UI
+            powerBar.style.width = power + '%';
+            powerValue.textContent = Math.floor(power) + '%';
+            
+            // Max power celebration!
+            if (power >= 100 && !wasMaxPower) {
+                wasMaxPower = true;
+                // Burst of fireworks
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        createFirework(
+                            100 + Math.random() * (window.innerWidth - 200),
+                            100 + Math.random() * (window.innerHeight - 300)
+                        );
+                    }, i * 100);
+                }
+            } else if (power < 100) {
+                wasMaxPower = false;
+            }
+            
+            // Blackout overlay
+            blackout.style.opacity = 1 - (power / 100);
+            
+            // Low power warning
+            if (power < 20 && power > 0) {
+                mainContainer.classList.add('low-power');
+            } else {
+                mainContainer.classList.remove('low-power');
+            }
+            
+            // Full blackout
+            if (power <= 0 && !isBlackout) {
+                isBlackout = true;
+                blackoutMessage.style.opacity = '1';
+                blackoutMessage.classList.add('warning-flash');
+            }
+            
+            if (power > 0) {
+                blackoutMessage.classList.remove('warning-flash');
+            }
+            
+            // Update lights
+            updateLights();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize
+        createTreeLights();
+        createStringLights();
+        document.addEventListener('keydown', handleKeyPress);
+        gameLoop();
+
+        // Prevent scrolling with space and arrow keys
+        window.addEventListener('keydown', (e) => {
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
